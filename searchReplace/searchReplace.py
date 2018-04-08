@@ -27,7 +27,10 @@ class MySearchReplace(QtGui.QWidget):
         self.search = QtGui.QLineEdit()
         self.replace = QtGui.QLineEdit()
 
-        self.infoBox = QtGui.QTextEdit()
+        self.infoBox = InfoBox()
+        self.infoBox.setMinimumHeight(450)
+
+        self.nodeInfo = dict()
 
         self.setLayout(self.masterLayout)
         self.constructLayout()
@@ -80,45 +83,107 @@ class MySearchReplace(QtGui.QWidget):
 
     def populateInfo(self):
 
+        searchText = str(self.search.text())
+        replaceText = str(self.replace.text())
+        if not searchText:
+            self.nodeInfo = dict()
+            self.infoBox.setHtml('')
+            return
+
         classLimit = str(self.classLimit.currentText())
         if classLimit != self.baseSelectItem:
             nodes = nuke.allNodes(classLimit)
         else:
             nodes = nuke.allNodes()
+
         infoItems = dict()
         for node in nodes:
             nodeItems = dict()
             stringKnobs = findStringKnobs(node)
             for knob, value in stringKnobs.iteritems():
-                    if str(self.search.text()) in value:
-                        nodeItems[knob] = ['Old: {oldVal}'.format(oldVal=value),
-                                           'New: {newVal}'.format(newVal=value.replace(str(self.search.text()),
-                                                                                       str(self.replace.text())))]
+                if str(searchText) in value:
+                    nodeItems[knob] = {'knob': knob,
+                                       'old': 'Old: {oldVal}'.format(oldVal=value),
+                                       'new': 'New: {newVal}'.format(newVal=value.replace(searchText,
+                                                                                          str(self.replace.text())))}
             if nodeItems:
                 infoItems[node.fullName()] = nodeItems
 
+        if not infoItems:
+            self.nodeInfo = dict()
+            self.infoBox.setHtml('')
+            return
         spacer = max([len(name) for name in infoItems.keys()]) + 1
         space = ' ' * spacer
         message = ''
 
         for node, value in infoItems.iteritems():
 
-            for idx, values in enumerate(value.values()):
-                if idx == 0:
-                    smallSpace = ' ' * (spacer - len(node))
-                    message += '{name}{smallSpace}{oldVal}\n{space}{newVal}\n'.format(name=node,
-                                                                                      smallSpace=smallSpace,
-                                                                                      oldVal=values[0],
-                                                                                      space=space,
-                                                                                      newVal=values[1])
-                else:
-                    message += '{space}{oldVal}\n{space}{newVal}\n'.format(oldVal=values[0],
-                                                                           space=space,
-                                                                           newVal=values[1])
+            value['searchText'] = searchText
+            value['replaceText'] = replaceText
+            value['node'] = node
+            value['spacer'] = spacer
+            message += self.getNodeMessage(value)
 
             message += '\n\n'
 
-        self.infoBox.setText(message)
+        self.nodeInfo = infoItems
+        self.infoBox.setHtml(message)
+
+    def getNodeMessage(self, nodeInfo):
+
+        searchText = nodeInfo.get('searchText')
+        replaceText = nodeInfo.get('replaceText')
+        node = nodeInfo.get('node')
+        spacer = nodeInfo.get('spacer')
+
+        nodeInfo.pop('searchText')
+        nodeInfo.pop('replaceText')
+        nodeInfo.pop('node')
+        nodeInfo.pop('spacer')
+
+        message = ''
+        for idx, values in enumerate(nodeInfo.values()):
+
+            toReplace = '<font color="#03CC00">{value}</font>'.format(value=searchText)
+            replaced = '<font color="#00B3CC">{value}</font>'.format(value=replaceText)
+
+            oldValue = values.get('old').replace(searchText, toReplace)
+            newValue = values.get('new').replace(replaceText, replaced)
+
+            space = '&nbsp;' * spacer
+            smallSpace = '&nbsp;' * (spacer - len(node) - 1)
+
+            if idx == 0:
+                message += ('{name} {smallSpace}<b>{knob}</b>\n'
+                            '{space}{oldVal}\n'
+                            '{space}{newVal}\n'
+                            ''.format(name=node,
+                                      smallSpace=smallSpace,
+                                      knob=values.get('knob').upper(),
+                                      space=space,
+                                      oldVal=oldValue,
+                                      newVal=newValue))
+            else:
+                message += ('{space}<b>{knob}</b>\n'
+                            '{space}{oldVal}\n'
+                            '{space}{newVal}\n'
+                            ''.format(space=space,
+                                      knob=values.get('knob').upper(),
+                                      oldVal=oldValue,
+                                      newVal=newValue))
+
+            return message
+
+
+class InfoBox(QtGui.QTextEdit):
+    def __init__(self):
+        super(InfoBox, self).__init__()
+
+    def setHtml(self, value):
+        value = value.replace('\n', '<br>')
+        # value = value.replace(' ', '&nbsp;')
+        super(InfoBox, self).setHtml(value)
 
 
 def findStringKnobs(node):
