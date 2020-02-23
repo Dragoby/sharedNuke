@@ -100,13 +100,12 @@ def replaceValues(nodes, knobs, searchFor, replaceWith, useRegex=None):
     """
 
     for node in nodes:
-        knobs = dict()
         for knob in knobs:
             if not hasKnob(node, knob):
                 continue
             currentValue = node[knob].value()
             if useRegex:
-                newValue = re.sub(searchFor, replaceWith, currentValue)
+                newValue = re.sub(searchFor, replaceWith, currentValue, re.DOTALL)
             else:
                 newValue = currentValue.replace(searchFor, replaceWith)
             node[knob].setValue(newValue)
