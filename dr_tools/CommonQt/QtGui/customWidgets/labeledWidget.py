@@ -4,7 +4,7 @@ except ImportError:
     from PySide import QtGui
 
 
-class LabeledKnob(QtGui.QWidget):
+class LabeledWidget(QtGui.QWidget):
     """
     This is a convenience widget that is used to add a label to a knob.  It has the ability to position the label either
     before, after, above, or below the given widget
@@ -32,7 +32,7 @@ class LabeledKnob(QtGui.QWidget):
             stretchPosition (str|optional): This is the position for the stretch if one is to be added.  This can be
                                             before, after, or middle
         """
-        super(LabeledKnob, self).__init__()
+        super(LabeledWidget, self).__init__()
 
         self.orientation = kwargs.get('orientation', self.Before)
         self.stretchPosition = kwargs.get('stretchPosition', None)
@@ -83,5 +83,5 @@ class LabeledKnob(QtGui.QWidget):
         """
         if self.__initialized is False:
             self.initialize()
-        super(LabeledKnob, self).showEvent(event)
+        super(LabeledWidget, self).showEvent(event)
 

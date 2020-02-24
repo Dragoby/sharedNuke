@@ -9,6 +9,9 @@ SEARCH_FOR_COLOUR = HEX_COLOURS.get('lightGreen')
 REPLACE_WITH_COLOUR = HEX_COLOURS.get('lightBlue')
 SPACE_CHARACTER = '&nbsp;'
 
+KNOB_BLACKLIST = ['help', 'onCreate', 'updateUI', 'rootNodeUpdated', 'knobChanged', 'autolabel', 'onDestroy', 'icon',
+                  'name']
+
 
 def hasKnob(node, knobName):
     """
@@ -28,9 +31,30 @@ def hasKnob(node, knobName):
     return True
 
 
-def getComparisonLabel(node, knobName, searchFor, replaceWith, useRegex=False):
+def getStringKnobs(node):
     """
-    This is used to collect the label info in formatted strings with the appropriate colours to be displayed in the
+    This will take a given node and check with knobs return a string value.  When it had gone over all knobs it will
+    return a set of all the knobs that contained string values
+    Args:
+        node (nuke.Node): This is the node in which to collect all of the knobs for
+
+    Returns:
+        set: This is a set of all the knobs which contain string values
+    """
+    stringKnobNames = set()
+    for knobName in node.knobs():
+        if knobName in KNOB_BLACKLIST:
+            continue
+        if isinstance(node[knobName].value(), str):
+            stringKnobNames.add(knobName)
+
+    return stringKnobNames
+
+
+def getReplacementInfo(node, knobName, searchFor, replaceWith, useRegex=False):
+    """
+    This is used to collect the replacement info for the given node and knob.  This will create the replacement value
+    and additionally create coloured new/original values that can be used in a GUI environment
     interface
     Args:
         node (nuke.Node): This is the node in which to create the label information for
@@ -46,7 +70,8 @@ def getComparisonLabel(node, knobName, searchFor, replaceWith, useRegex=False):
                    'colouredOriginalValue': <the full value with the coloured formatted search for in it>
                    'colouredNewValue': <the full value with the coloured formatted replacement in it>
                    'currentValue': <the current value of the given knob>,
-                   'knob': <the name of the knob the values pertain to>}
+                   'knob': <the name of the knob the values pertain to>,
+                   'newValue: <This is the new non coloured value>}
     """
     labelInfo = {'colouredSearchFor': searchFor,
                  'colouredReplaceWith': replaceWith,
@@ -73,6 +98,11 @@ def getComparisonLabel(node, knobName, searchFor, replaceWith, useRegex=False):
                                                labelInfo.get('currentValue', ''),
                                                re.DOTALL)
 
+        labelInfo['newValue'] = re.sub(searchFor,
+                                       replaceWith,
+                                       labelInfo.get('currentValue', ''),
+                                       re.DOTALL)
+
         labelInfo['colouredOriginalValue'] = re.sub(searchFor,
                                                     labelInfo.get('colouredSearchFor', searchFor),
                                                     labelInfo.get('currentValue', ''),
@@ -81,6 +111,8 @@ def getComparisonLabel(node, knobName, searchFor, replaceWith, useRegex=False):
         labelInfo['colouredNewValue'] = labelInfo.get('currentValue',
                                                       '').replace(searchFor,
                                                                   labelInfo.get('colouredReplaceWith', replaceWith))
+        labelInfo['newValue'] = labelInfo.get('currentValue', '').replace(searchFor,
+                                                                          replaceWith)
         labelInfo['colouredOriginalValue'] = labelInfo.get('currentValue',
                                                            '').replace(searchFor,
                                                                        labelInfo.get('colouredSearchFor', searchFor))
@@ -101,11 +133,9 @@ def replaceValues(nodes, knobs, searchFor, replaceWith, useRegex=None):
 
     for node in nodes:
         for knob in knobs:
-            if not hasKnob(node, knob):
-                continue
-            currentValue = node[knob].value()
-            if useRegex:
-                newValue = re.sub(searchFor, replaceWith, currentValue, re.DOTALL)
-            else:
-                newValue = currentValue.replace(searchFor, replaceWith)
-            node[knob].setValue(newValue)
+            replacementInfo = getReplacementInfo(node, knob, searchFor, replaceWith, useRegex=useRegex)
+
+            try:
+                success = node[knob].setValue(replacementInfo.get('newValue', replacementInfo.get('currentValue', '')))
+            except TypeError:
+                success = False

@@ -24,3 +24,10 @@ class BaseWidget(QtGui.QWidget):
 
     def initializeSignals(self):
         raise NotImplementedError('This must be overridden to ensure proper initialization')
+
+    def showEvent(self, event):
+
+        if self.initialized is False:
+            self.initialize()
+
+        super(BaseWidget, self).showEvent(event)

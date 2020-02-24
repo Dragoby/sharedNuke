@@ -5,4 +5,4 @@ except ImportError:
     from PySide.QtGui import *
 
 from .customWidgets.baseWidget import BaseWidget
-from .customWidgets.labeledKnob import LabeledKnob
+from .customWidgets.labeledWidget import LabeledWidget
